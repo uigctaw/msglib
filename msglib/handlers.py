@@ -47,10 +47,10 @@ class ConnectionHandler:
             ChannelType.QUEUE: QueueHandler(),
         }
 
-    def new_connection(self, connection_id):
+    def on_new_connection(self, connection_id):
         print(connection_id)
 
-    def handle_message(self, *, msg_fields):
+    def on_message(self, *, msg_fields):
         channel_type, *tail = msg_fields
         return self._handlers[int_from_bytes(channel_type)](
                 tail,

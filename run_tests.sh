@@ -4,8 +4,10 @@ set -euo pipefail
 
 echo -e "\nPytest:"
 poetry run pytest tests ; echo Success!
+
 echo -e "\nBandit:"
 poetry run bandit -c pyproject.toml -r . ; echo Success!
+
 echo -e "\nMypy:"
 poetry run mypy . --show-error-codes --check-untyped-defs ; echo Success!
 
@@ -17,6 +19,9 @@ echo -e "\nPylint msglib:"
 poetry run pylint msglib ; echo Success!
 echo -e "\nPylint tests:"
 poetry run pylint tests --disable=unbalanced-tuple-unpacking ; echo Success!
+
+echo -e "\nSpelling:"
+aspell check README.rst ; echo Success!
 
 echo -e "\nSUCCESS!"
 
