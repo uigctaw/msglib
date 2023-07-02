@@ -20,5 +20,8 @@ poetry run pylint msglib ; echo Success!
 echo -e "\nPylint tests:"
 poetry run pylint tests --disable=unbalanced-tuple-unpacking ; echo Success!
 
+echo -e "\nSpelling:"
+aspell check README.rst ; echo Success!
+
 echo -e "\nSUCCESS!"
 

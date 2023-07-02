@@ -59,7 +59,7 @@ Let's look at 2 unit tests.
             # receive the message. So we just keep processing
             # until the message is received. To avoid the test
             # getting stuck in the infinite loop, in case
-            # of a bug or druing refactoring, there is an arbitrary
+            # of a bug or during refactoring, there is an arbitrary
             # upper bound of the number of iterations.
             # Note that, because this in memory implementation is
             # intended to be used in a test environment, the blocking
@@ -119,7 +119,7 @@ Let's look at 2 unit tests.
                 q_id=QueueId.GREETINGS,
             )
 
-            # Attempting to read an unavailalbe message would
+            # Attempting to read an unavailable message would
             # block the main thread, so we run it in its own thread.
             class Reader(threading.Thread):
 
