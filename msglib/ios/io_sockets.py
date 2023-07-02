@@ -1,11 +1,9 @@
-from collections.abc import Iterable
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import NewType
 import select
 import socket
 
-
-ConnectionId = NewType('ConnectionId', int)
+from msglib.broker import ConnectionsActivity
 
 
 class InvalidIPv6(Exception):
@@ -39,7 +37,7 @@ class IPv6(tuple):
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
-class IPv6ConnectArgs:
+class _IPv6ConnectArgs:
     host: IPv6
     port: int
 
@@ -52,31 +50,7 @@ class IPv6ConnectArgs:
         ))
 
 
-class Connection:
-
-    def __init__(self, *, ip: IPv6, port: int):
-        self._socket: socket.socket
-        self._ip = ip
-        self._port = port
-
-    def __enter__(self):
-        self._socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        self._socket.__enter__()
-        self._socket.connect(
-                tuple(IPv6ConnectArgs(host=self._ip, port=self._port)))
-        return self
-
-    def __exit__(self, *args):
-        self._socket.__exit__(*args)
-
-    def read(self, num_bytes):
-        return self._socket.recv(num_bytes)
-
-    def write(self, bytes_):
-        return self._socket.sendall(bytes_)
-
-
-class InitializedConnection:
+class _Connection:
 
     def __init__(self, socket_):
         self._socket = socket_
@@ -89,13 +63,22 @@ class InitializedConnection:
         return self._socket.sendall(bytes_)
 
 
+@contextmanager
+def connect(*, ip: IPv6, port: int, timeout_seconds: float | None):
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as socket_:
+        socket_.connect(tuple(_IPv6ConnectArgs(host=ip, port=port)))
+        socket_.settimeout(timeout_seconds)
+        yield _Connection(socket_)
+
+
 class EpollSocketManager:
 
-    def __init__(self, ip: IPv6, port: int):
+    def __init__(self, ip: IPv6, port: int, epoll_timeout_seconds: float):
         self._ip = ip
         self._port = port
         self._listen_socket: socket.socket
         self._epoll: select.epoll
+        self._epoll_timeout_s = epoll_timeout_seconds
 
     def __enter__(self):
         self._listen_socket = socket.socket(
@@ -106,7 +89,7 @@ class EpollSocketManager:
                 1,  # value
         )
         self._listen_socket.bind(
-                tuple(IPv6ConnectArgs(host=self._ip, port=self._port)))
+                tuple(_IPv6ConnectArgs(host=self._ip, port=self._port)))
         self._listen_socket.listen(10)
         self._listen_socket.setblocking(False)
 
@@ -127,14 +110,13 @@ class EpollSocketManager:
         new_connections = []
         readable = []
         closed = []
-        events = epoll_.poll(0)
+        events = epoll_.poll(self._epoll_timeout_s)
         for fileno, event in events:
-            fileno = ConnectionId(fileno)
             if fileno == listen_socket.fileno():
                 connection, _ = listen_socket.accept()
                 connection.setblocking(False)
                 epoll_.register(connection.fileno(), select.EPOLLIN)
-                new_connections.append(InitializedConnection(connection))
+                new_connections.append(_Connection(connection))
             else:
                 processed = False
                 if event & select.EPOLLIN:
@@ -146,15 +128,8 @@ class EpollSocketManager:
                     processed = True
                 if not processed:
                     raise ValueError(f'Unexpected event {event}')
-        return Connections(
+        return ConnectionsActivity(
                 new=new_connections,
                 readable_ids=readable,
                 closed_ids=closed,
         )
-
-
-@dataclass(kw_only=True, frozen=True, slots=True)
-class Connections:
-    new: Iterable[InitializedConnection | Connection]
-    readable_ids: Iterable[ConnectionId]
-    closed_ids: Iterable[ConnectionId]

@@ -16,7 +16,7 @@ def blocking_pull_subscribe_to_queue(*, connection, q_id):
     return _QSub(connection=connection, q_id=q_id)
 
 
-class _QMsg:
+class AckableQMsg:
 
     def __init__(self, payload):
         self.payload = payload
@@ -38,7 +38,7 @@ class _QSub:
     def __next__(self):
         _publish(connection=self._connection, msg=self._pull_msg)
         msg_fields = deserialize(self._connection)
-        return _QMsg(*msg_fields)
+        return AckableQMsg(*msg_fields)
 
 
 def _publish(*, connection, msg):

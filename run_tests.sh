@@ -4,8 +4,10 @@ set -euo pipefail
 
 echo -e "\nPytest:"
 poetry run pytest tests ; echo Success!
+
 echo -e "\nBandit:"
 poetry run bandit -c pyproject.toml -r . ; echo Success!
+
 echo -e "\nMypy:"
 poetry run mypy . --show-error-codes --check-untyped-defs ; echo Success!
 
